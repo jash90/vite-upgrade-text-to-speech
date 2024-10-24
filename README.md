@@ -66,7 +66,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Live Demo
 
-Visit the live demo: [Text-to-Speech Converter]([https://vite-upgrade-text-to-speech.vercel.app/])
+Visit the live demo: [Text-to-Speech Converter](https://vite-upgrade-text-to-speech.vercel.app/)
 
 ## Support
 
