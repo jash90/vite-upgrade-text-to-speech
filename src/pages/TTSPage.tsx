@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Toaster } from '@/components/ui/toaster';
 import {
@@ -22,11 +22,22 @@ import type { VoiceType, AudioOutput } from '@/types';
  * - Progress tracking during conversion
  * - Audio playback and download
  */
+const API_KEY_STORAGE_KEY = 'openai-api-key';
+
 export default function TTSPage() {
   // Local state for user inputs
   const [inputText, setInputText] = useState<string>('');
-  const [apiKey, setApiKey] = useState<string>('');
+  const [apiKey, setApiKey] = useState<string>(() => {
+    return localStorage.getItem(API_KEY_STORAGE_KEY) || '';
+  });
   const [voice, setVoice] = useState<VoiceType>('alloy');
+
+  // Save API key to localStorage when it changes
+  useEffect(() => {
+    if (apiKey) {
+      localStorage.setItem(API_KEY_STORAGE_KEY, apiKey);
+    }
+  }, [apiKey]);
 
   // File upload hook
   const {
