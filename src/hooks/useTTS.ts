@@ -3,7 +3,7 @@ import axios from 'axios';
 import { useToast } from '@/components/ui/use-toast';
 import type { VoiceType, AudioOutput } from '@/types';
 import { splitTextIntoChunks, removeExtraWhitespaces } from '@/lib/text-processing';
-import { mergeAudioBuffers, concatenateBuffers } from '@/lib/audio-utils';
+import { concatenateBuffers } from '@/lib/audio-utils';
 
 const OPENAI_TTS_ENDPOINT = 'https://api.openai.com/v1/audio/speech';
 const TTS_MODEL = 'tts-1';
@@ -57,7 +57,12 @@ export function useTTS({ apiKey, voice }: UseTTSParams): UseTTSResult {
    * Sends a text chunk to OpenAI TTS API and returns audio buffer
    */
   const sendTextForTTS = useCallback(
-    async (text: string, chunkIndex: number): Promise<ArrayBuffer | null> => {
+    async (
+      text: string,
+      chunkIndex: number,
+      onProgress?: (percentage: number) => void
+    ): Promise<ArrayBuffer | null> => {
+      const textLength = text.length;
       try {
         const response = await axios.post<ArrayBuffer>(
           OPENAI_TTS_ENDPOINT,
@@ -72,6 +77,30 @@ export function useTTS({ apiKey, voice }: UseTTSParams): UseTTSResult {
               'Content-Type': 'application/json',
             },
             responseType: 'arraybuffer',
+            onDownloadProgress: (progressEvent) => {
+              if (onProgress) {
+                if (progressEvent.total) {
+                  // If total size is known, calculate exact percentage
+                  const percentage = Math.round(
+                    (progressEvent.loaded * 100) / progressEvent.total
+                  );
+                  onProgress(percentage);
+                } else {
+                  // Estimate total size based on text length
+                  // Typical MP3 from OpenAI TTS: ~40-60 bytes per character
+                  // Using 50 bytes/char as average
+                  const estimatedTotal = textLength * 50;
+                  const loaded = progressEvent.loaded;
+
+                  // Calculate percentage, cap at 95% until download completes
+                  const percentage = Math.min(
+                    95,
+                    Math.round((loaded * 100) / estimatedTotal)
+                  );
+                  onProgress(percentage);
+                }
+              }
+            },
           }
         );
         console.log(`Chunk ${chunkIndex} audio generated`);
@@ -126,10 +155,8 @@ export function useTTS({ apiKey, voice }: UseTTSParams): UseTTSResult {
    * Falls back to simple concatenation for single chunk (keeps MP3)
    */
   const mergeBuffers = useCallback(async (buffers: ArrayBuffer[]): Promise<Blob> => {
-    if (buffers.length === 1) {
-      return concatenateBuffers(buffers);
-    }
-    return mergeAudioBuffers(buffers);
+    // Always use simple concatenation as per user request (reverts to previous behavior)
+    return concatenateBuffers(buffers);
   }, []);
 
   /**
@@ -169,19 +196,20 @@ export function useTTS({ apiKey, voice }: UseTTSParams): UseTTSResult {
         const totalChunks = chunks.length;
 
         for (let i = 0; i < chunks.length; i++) {
-          const audioData = await sendTextForTTS(chunks[i], i);
+          const audioData = await sendTextForTTS(chunks[i], i, (chunkProgress) => {
+            const currentProgress = Math.min(
+              100,
+              Math.floor(((i + chunkProgress / 100) / totalChunks) * 100)
+            );
+            setProgress(currentProgress);
+          });
 
           if (audioData) {
             audioBuffers.push(audioData);
           } else {
             throw new Error(`Failed to generate audio for chunk ${i + 1}`);
           }
-
-          // Update progress based on chunks processed
-          const currentProgress = Math.min(100, Math.floor(((i + 1) / totalChunks) * 100));
-          setProgress(currentProgress);
         }
-
         // Merge all audio buffers into a single blob
         const mergedAudioBlob = await mergeBuffers(audioBuffers);
         const newAudioUrl = URL.createObjectURL(mergedAudioBlob);
@@ -232,7 +260,12 @@ export function useTTS({ apiKey, voice }: UseTTSParams): UseTTSResult {
     setTestAudioUrl(null);
 
     try {
-      const audioData = await sendTextForTTS(TEST_TEXT, 0);
+      const audioData = await sendTextForTTS(TEST_TEXT, 0, (percentage) => {
+        // For testing, just show the download percentage directly
+        // We don't expose progress in the UI for testing explicitly, but we could if we wanted
+        // For now, let's update the main progress state just in case
+        setProgress(percentage);
+      });
 
       if (audioData) {
         const audioBlob = new Blob([audioData], { type: 'audio/mp3' });
@@ -336,13 +369,24 @@ export function useTTS({ apiKey, voice }: UseTTSParams): UseTTSResult {
         updatedOutputs[i] = { ...output, status: 'processing' };
         onProgress([...updatedOutputs]);
 
+
         try {
           const cleanedText = removeExtraWhitespaces(output.text);
           const chunks = splitTextIntoChunks(cleanedText, CHUNK_SIZE);
           const audioBuffers: ArrayBuffer[] = [];
 
           for (let j = 0; j < chunks.length; j++) {
-            const audioData = await sendTextForTTS(chunks[j], j);
+            const audioData = await sendTextForTTS(chunks[j], j, (chunkProgress) => {
+              // Calculate progress for this specific item (0-100%)
+              // const itemProgress = (j + chunkProgress / 100) / chunks.length;
+
+              // Calculate global progress
+              // Global = (Completed Items + Current Item Progress) / Total Items
+              const activeItemProgressRaw = (j + chunkProgress / 100) / chunks.length;
+              const globalProgress = Math.floor(((completedItems + activeItemProgressRaw) / totalItems) * 100);
+
+              setProgress(Math.min(100, globalProgress));
+            });
 
             if (audioData) {
               audioBuffers.push(audioData);
