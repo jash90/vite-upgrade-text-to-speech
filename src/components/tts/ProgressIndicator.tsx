@@ -3,10 +3,9 @@ import { Progress } from '@/components/ui/progress';
 interface ProgressIndicatorProps {
   progress: number;
   isVisible: boolean;
-  statusMessage?: string;
 }
 
-export function ProgressIndicator({ progress, isVisible, statusMessage }: ProgressIndicatorProps) {
+export function ProgressIndicator({ progress, isVisible }: ProgressIndicatorProps) {
   if (!isVisible) {
     return null;
   }
