@@ -3,9 +3,10 @@ import { Progress } from '@/components/ui/progress';
 interface ProgressIndicatorProps {
   progress: number;
   isVisible: boolean;
+  statusMessage?: string;
 }
 
-export function ProgressIndicator({ progress, isVisible }: ProgressIndicatorProps) {
+export function ProgressIndicator({ progress, isVisible, statusMessage }: ProgressIndicatorProps) {
   if (!isVisible) {
     return null;
   }
@@ -13,9 +14,11 @@ export function ProgressIndicator({ progress, isVisible }: ProgressIndicatorProp
   return (
     <div className="space-y-2">
       <Progress value={progress} className="w-full" />
-      <p className="text-center text-sm text-muted-foreground">
-        {progress}% complete
-      </p>
+      <div className="flex flex-col items-center gap-1">
+        <p className="text-center text-xs text-muted-foreground">
+          {progress}% complete
+        </p>
+      </div>
     </div>
   );
 }
