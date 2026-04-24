@@ -1,11 +1,29 @@
 import index from "../index.html";
+import { file } from "bun";
+import { join } from "node:path";
 
 const OPENAI_TTS_ENDPOINT = "https://api.openai.com/v1/audio/speech";
 const port = Number(process.env.PORT ?? 3000);
 const isDev = process.env.NODE_ENV !== "production";
+const publicDir = new URL("../public", import.meta.url).pathname;
+
+async function servePublic(pathname: string): Promise<Response | null> {
+  // Strip leading slash, disallow path traversal.
+  const safe = pathname.replace(/^\//, "").replace(/\.\.\//g, "");
+  if (!safe) return null;
+  const f = file(join(publicDir, safe));
+  if (!(await f.exists())) return null;
+  return new Response(f);
+}
 
 const server = Bun.serve({
   port,
+  async fetch(req) {
+    const url = new URL(req.url);
+    const publicResponse = await servePublic(url.pathname);
+    if (publicResponse) return publicResponse;
+    return new Response("Not found", { status: 404 });
+  },
   routes: {
     "/": index,
     "/api/tts": {

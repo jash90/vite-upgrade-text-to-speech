@@ -3,10 +3,339 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Text-to-Speech Converter</title>
-  </head>
-  <body>
-    <div id="root"></div>
+    <meta name="theme-color" content="#6366f1" />
+
+    <title>Text-to-Speech Converter — OpenAI API &amp; Offline Piper TTS in the Browser</title>
+    <meta
+      name="description"
+      content="Free browser-based text-to-speech converter. Use OpenAI TTS (tts-1, tts-1-hd, gpt-4o-mini-tts) with any voice, or run Piper VITS offline for Polish &amp; English — no backend, no install. Multi-file support, audio merge, live cost estimate, API key stays local."
+    />
+    <meta
+      name="keywords"
+      content="text to speech, tts, browser tts, openai tts, piper vits, offline tts, polish tts, english tts, multi-file tts, gpt-4o-mini-tts, tts-1, tts-1-hd"
+    />
+    <link rel="canonical" href="https://vite-upgrade-text-to-speech.vercel.app/" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Text-to-Speech Converter" />
+    <meta
+      property="og:title"
+      content="Text-to-Speech Converter — OpenAI &amp; Offline Piper TTS"
+    />
+    <meta
+      property="og:description"
+      content="Convert text to natural speech in the browser. OpenAI API or offline Piper VITS (PL &amp; EN). Multi-file, audio merge, live cost estimate. Open source."
+    />
+    <meta property="og:url" content="https://vite-upgrade-text-to-speech.vercel.app/" />
+    <meta property="og:image" content="https://vite-upgrade-text-to-speech.vercel.app/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta
+      name="twitter:title"
+      content="Text-to-Speech Converter — OpenAI &amp; Offline Piper TTS"
+    />
+    <meta
+      name="twitter:description"
+      content="Convert text to natural speech in the browser. OpenAI API or offline Piper VITS. Open source."
+    />
+    <meta name="twitter:image" content="https://vite-upgrade-text-to-speech.vercel.app/og.png" />
+
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%236366f1'/><text x='50%25' y='54%25' text-anchor='middle' fill='white' font-family='system-ui' font-size='40' font-weight='700'>TTS</text></svg>" />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Text-to-Speech Converter",
+        "applicationCategory": "MultimediaApplication",
+        "operatingSystem": "Web",
+        "description": "Browser-based text-to-speech converter. Supports OpenAI TTS (tts-1, tts-1-hd, gpt-4o-mini-tts) and offline Piper VITS for Polish & English.",
+        "url": "https://vite-upgrade-text-to-speech.vercel.app/",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "featureList": [
+          "OpenAI TTS models (tts-1, tts-1-hd, gpt-4o-mini-tts)",
+          "Offline Piper VITS for Polish and English",
+          "Multi-file batch processing with merged audio output",
+          "Live cost estimate based on current OpenAI pricing",
+          "Voice previews without burning API credits",
+          "API key stays in the browser"
+        ]
+      }
+    </script>
+
     <script type="module" src="/src/main.tsx"></script>
+  </head>
+  <body class="bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-950 text-gray-900 dark:text-gray-100 antialiased">
+
+    <!-- ============ LANDING (static HTML, crawlable without JS) ============ -->
+    <header class="border-b border-gray-200/60 dark:border-gray-800">
+      <nav class="container mx-auto max-w-5xl px-6 py-4 flex items-center justify-between">
+        <a href="/" class="flex items-center gap-2 font-semibold text-lg">
+          <span class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 text-white font-bold text-sm">T</span>
+          <span>TTS Converter</span>
+        </a>
+        <div class="flex items-center gap-4 text-sm">
+          <a href="#features" class="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">Features</a>
+          <a href="#how" class="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">How it works</a>
+          <a href="#faq" class="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">FAQ</a>
+          <a href="https://github.com/jash90/vite-upgrade-text-to-speech" class="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white" rel="noopener" target="_blank">GitHub</a>
+        </div>
+      </nav>
+    </header>
+
+    <main>
+      <!-- Hero -->
+      <section class="container mx-auto max-w-5xl px-6 pt-16 pb-12 text-center">
+        <p class="inline-flex items-center gap-2 rounded-full border border-gray-200 dark:border-gray-800 bg-white/60 dark:bg-gray-900/60 px-3 py-1 text-xs font-medium text-gray-600 dark:text-gray-300 backdrop-blur">
+          Open source · MIT · runs fully in your browser
+        </p>
+        <h1 class="mt-6 text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight leading-[1.05]">
+          Turn text into
+          <span class="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">natural speech</span><br class="hidden sm:block" />
+          — cloud or offline.
+        </h1>
+        <p class="mt-5 max-w-2xl mx-auto text-lg text-gray-600 dark:text-gray-300">
+          One interface for OpenAI's TTS models <em>and</em> offline
+          <strong>Piper VITS</strong> running directly in the browser.
+          Batch multiple files, preview voices for free, and see the cost
+          before you generate.
+        </p>
+        <div class="mt-8 flex flex-wrap items-center justify-center gap-3">
+          <a
+            href="#app"
+            class="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 px-5 py-3 text-white font-semibold shadow-lg hover:shadow-xl hover:scale-[1.02] transition"
+          >
+            Open the converter →
+          </a>
+          <a
+            href="https://github.com/jash90/vite-upgrade-text-to-speech"
+            rel="noopener"
+            target="_blank"
+            class="inline-flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 px-5 py-3 text-gray-800 dark:text-gray-100 font-semibold hover:border-gray-400 dark:hover:border-gray-500 transition"
+          >
+            View source on GitHub
+          </a>
+        </div>
+        <p class="mt-4 text-xs text-gray-500 dark:text-gray-400">
+          No signup. Your OpenAI key never leaves your machine except to call OpenAI.
+        </p>
+      </section>
+
+      <!-- Feature grid -->
+      <section id="features" class="container mx-auto max-w-5xl px-6 py-12 scroll-mt-16">
+        <h2 class="text-3xl font-bold text-center">Everything you need for quick TTS work</h2>
+        <p class="mt-2 text-center text-gray-600 dark:text-gray-300">
+          Built for folks who need audio out of text without ceremony.
+        </p>
+        <div class="mt-10 grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <article class="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-6">
+            <div class="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300 flex items-center justify-center text-xl font-bold">☁</div>
+            <h3 class="mt-4 font-semibold text-lg">OpenAI TTS</h3>
+            <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">
+              Pick from <code>tts-1</code>, <code>tts-1-hd</code>, or the
+              newer <code>gpt-4o-mini-tts</code>. Voice list auto-filters to
+              your model. Free voice previews use OpenAI's public samples —
+              no API call required.
+            </p>
+          </article>
+
+          <article class="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-6">
+            <div class="w-10 h-10 rounded-lg bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 flex items-center justify-center text-xl font-bold">⏻</div>
+            <h3 class="mt-4 font-semibold text-lg">Offline Piper VITS</h3>
+            <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">
+              Run high-quality TTS fully in the browser — no backend, no
+              network. Polish (Darkman / Gosia / MC Speech) and English
+              (Ryan / HFC Female) out of the box. Models cache in OPFS after
+              a one-time download.
+            </p>
+          </article>
+
+          <article class="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-6">
+            <div class="w-10 h-10 rounded-lg bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-300 flex items-center justify-center text-xl font-bold">⇩</div>
+            <h3 class="mt-4 font-semibold text-lg">Multi-file + merged track</h3>
+            <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">
+              Drop several <code>.txt</code> files; each gets its own audio
+              file. With 2+ sources, an extra merged MP3 is produced so you
+              get both parts and a single stitched listen.
+            </p>
+          </article>
+
+          <article class="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-6">
+            <div class="w-10 h-10 rounded-lg bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-300 flex items-center justify-center text-xl font-bold">$</div>
+            <h3 class="mt-4 font-semibold text-lg">Live cost estimate</h3>
+            <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">
+              See character count and USD cost as you type, using current
+              OpenAI pricing. For <code>gpt-4o-mini-tts</code> you get a
+              breakdown of input text tokens and audio output tokens.
+            </p>
+          </article>
+
+          <article class="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-6">
+            <div class="w-10 h-10 rounded-lg bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-300 flex items-center justify-center text-xl font-bold">♬</div>
+            <h3 class="mt-4 font-semibold text-lg">Preview voices free</h3>
+            <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">
+              OpenAI voice previews are served from the official public CDN
+              — zero cost and no key needed. Local voices synthesize a short
+              sample on the fly.
+            </p>
+          </article>
+
+          <article class="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-6">
+            <div class="w-10 h-10 rounded-lg bg-sky-100 dark:bg-sky-900/40 text-sky-600 dark:text-sky-300 flex items-center justify-center text-xl font-bold">⚡</div>
+            <h3 class="mt-4 font-semibold text-lg">Fast Bun toolchain</h3>
+            <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">
+              No Vite, no PostCSS. Bundled and served by Bun with Tailwind
+              v4, and deployed as a single static bundle plus one Vercel
+              Edge function that proxies the OpenAI call.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <!-- How it works -->
+      <section id="how" class="container mx-auto max-w-5xl px-6 py-12 scroll-mt-16">
+        <h2 class="text-3xl font-bold text-center">How it works</h2>
+        <ol class="mt-10 grid md:grid-cols-3 gap-5">
+          <li class="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-6">
+            <div class="text-sm font-mono text-gray-400">01</div>
+            <h3 class="mt-2 font-semibold text-lg">Pick an engine</h3>
+            <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">
+              <strong>OpenAI API</strong> for the cloud voices (needs your
+              key), or <strong>Local (offline)</strong> to run Piper VITS
+              right in the browser — no network after the first download.
+            </p>
+          </li>
+          <li class="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-6">
+            <div class="text-sm font-mono text-gray-400">02</div>
+            <h3 class="mt-2 font-semibold text-lg">Drop text or files</h3>
+            <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">
+              Type directly or upload <code>.txt</code> files. Each file
+              keeps its own audio output; when you have two or more, a
+              merged track is built on top automatically.
+            </p>
+          </li>
+          <li class="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-6">
+            <div class="text-sm font-mono text-gray-400">03</div>
+            <h3 class="mt-2 font-semibold text-lg">Convert &amp; download</h3>
+            <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">
+              Live progress, per-item audio players, and one-click
+              downloads. Cost estimate updates as you edit.
+            </p>
+          </li>
+        </ol>
+      </section>
+
+      <!-- FAQ -->
+      <section id="faq" class="container mx-auto max-w-3xl px-6 py-12 scroll-mt-16">
+        <h2 class="text-3xl font-bold text-center">FAQ</h2>
+        <div class="mt-8 space-y-4">
+          <details class="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-5 open:shadow-sm">
+            <summary class="font-semibold cursor-pointer list-none flex justify-between items-center">
+              Is my OpenAI API key sent anywhere?
+              <span class="text-gray-400 text-xl leading-none">+</span>
+            </summary>
+            <p class="mt-3 text-sm text-gray-600 dark:text-gray-300">
+              The key is stored in your browser's <code>localStorage</code>
+              and sent only with each TTS request, which is routed through a
+              thin <code>/api/tts</code> Vercel Edge proxy to OpenAI. Nothing
+              is logged on the server side.
+            </p>
+          </details>
+
+          <details class="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-5 open:shadow-sm">
+            <summary class="font-semibold cursor-pointer list-none flex justify-between items-center">
+              Does the offline engine really work without internet?
+              <span class="text-gray-400 text-xl leading-none">+</span>
+            </summary>
+            <p class="mt-3 text-sm text-gray-600 dark:text-gray-300">
+              Yes — once the Piper model is downloaded (~63 MB per voice,
+              cached in the browser's Origin Private File System), synthesis
+              runs fully on your device via <code>onnxruntime-web</code> and
+              a WebAssembly build of <code>piper_phonemize</code>. No TTS
+              request leaves the tab.
+            </p>
+          </details>
+
+          <details class="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-5 open:shadow-sm">
+            <summary class="font-semibold cursor-pointer list-none flex justify-between items-center">
+              Which OpenAI models and voices are supported?
+              <span class="text-gray-400 text-xl leading-none">+</span>
+            </summary>
+            <p class="mt-3 text-sm text-gray-600 dark:text-gray-300">
+              <code>tts-1</code>, <code>tts-1-hd</code>, and
+              <code>gpt-4o-mini-tts</code>. The voice list auto-filters to
+              the voices that model actually supports — so picking
+              <code>tts-1</code> shows the classic six, and
+              <code>gpt-4o-mini-tts</code> unlocks ash, ballad, coral, sage,
+              verse on top.
+            </p>
+          </details>
+
+          <details class="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-5 open:shadow-sm">
+            <summary class="font-semibold cursor-pointer list-none flex justify-between items-center">
+              Which languages does the offline engine support?
+              <span class="font-normal text-gray-400 text-xl leading-none">+</span>
+            </summary>
+            <p class="mt-3 text-sm text-gray-600 dark:text-gray-300">
+              Polish and English (US) out of the box, via Piper voices from
+              rhasspy's canonical catalog. More languages could be added by
+              registering their <code>voiceId</code> in
+              <code>src/types/index.ts</code>.
+            </p>
+          </details>
+
+          <details class="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-5 open:shadow-sm">
+            <summary class="font-semibold cursor-pointer list-none flex justify-between items-center">
+              How accurate is the cost estimate?
+              <span class="text-gray-400 text-xl leading-none">+</span>
+            </summary>
+            <p class="mt-3 text-sm text-gray-600 dark:text-gray-300">
+              For <code>tts-1</code> / <code>tts-1-hd</code> it's exact
+              (OpenAI bills per character). For
+              <code>gpt-4o-mini-tts</code> it's an estimate — tokens per
+              character are approximated (~4 chars per input token, ~1.8
+              audio tokens per character). Actual billing is whatever
+              OpenAI charges.
+            </p>
+          </details>
+
+          <details class="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-5 open:shadow-sm">
+            <summary class="font-semibold cursor-pointer list-none flex justify-between items-center">
+              What browsers are supported?
+              <span class="text-gray-400 text-xl leading-none">+</span>
+            </summary>
+            <p class="mt-3 text-sm text-gray-600 dark:text-gray-300">
+              Any modern evergreen browser for the OpenAI path. The
+              offline engine additionally needs OPFS (Chrome, Edge, Safari
+              16.4+, Firefox 111+) and enough memory to run onnxruntime-web.
+            </p>
+          </details>
+        </div>
+      </section>
+
+      <!-- App anchor: React mounts here -->
+      <section id="app" class="scroll-mt-8 pt-4">
+        <div id="root"></div>
+      </section>
+    </main>
+
+    <footer class="border-t border-gray-200/60 dark:border-gray-800 mt-8">
+      <div class="container mx-auto max-w-5xl px-6 py-8 flex flex-col sm:flex-row justify-between items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
+        <p>Open source · MIT License</p>
+        <div class="flex items-center gap-4">
+          <a href="https://github.com/jash90/vite-upgrade-text-to-speech" rel="noopener" target="_blank" class="hover:text-gray-900 dark:hover:text-gray-100">GitHub</a>
+          <a href="https://platform.openai.com/docs/guides/text-to-speech" rel="noopener" target="_blank" class="hover:text-gray-900 dark:hover:text-gray-100">OpenAI TTS docs</a>
+          <a href="https://github.com/rhasspy/piper" rel="noopener" target="_blank" class="hover:text-gray-900 dark:hover:text-gray-100">Piper</a>
+        </div>
+      </div>
+    </footer>
   </body>
 </html>

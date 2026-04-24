@@ -121,15 +121,15 @@ export default function TTSPage() {
   const costEstimate = hasContent && engine === 'openai' ? estimateCost(model, combinedText.length) : null;
 
   return (
-    <div className="container mx-auto p-4 min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 to-purple-100 dark:from-gray-800 dark:to-gray-900">
-      <Card className="w-full max-w-2xl shadow-xl">
+    <div className="container mx-auto max-w-2xl px-4 py-12 flex items-start justify-center">
+      <Card className="w-full shadow-xl">
         <CardHeader>
-          <CardTitle className="text-3xl font-bold text-center text-gray-800 dark:text-gray-100">
-            Text-to-Speech Converter
+          <CardTitle className="text-2xl md:text-3xl font-bold text-center text-gray-800 dark:text-gray-100">
+            Try it now
           </CardTitle>
           <CardDescription className="text-center text-gray-600 dark:text-gray-300">
-            Convert your text into natural-sounding speech. Pick OpenAI's cloud voices or
-            run Piper VITS offline in your browser (Polish &amp; English).
+            Your API key stays in the browser — it's only forwarded to OpenAI through
+            the Edge proxy, never stored server-side.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
