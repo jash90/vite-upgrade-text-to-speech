@@ -12,9 +12,9 @@ Links used in both posts:
 
 ## 🇬🇧 English
 
-🎙️ Shipped: a browser-first text-to-speech converter — OpenAI cloud voices **or** fully offline Piper VITS running via WebAssembly.
+🎙️ Shipped: a browser-first TTS — OpenAI cloud voices **or** offline Piper VITS via WebAssembly.
 
-Why I built it: I kept bouncing between paid cloud TTS for quality and free-but-limited alternatives, and wanted one tool that does both. So:
+Why I built it: kept bouncing between paid cloud TTS and free-but-limited alternatives. Wanted one tool that does both:
 
 → OpenAI TTS (`tts-1`, `tts-1-hd`, `gpt-4o-mini-tts`) — voice dropdown auto-filters to what the selected model actually supports
 → Offline Piper VITS for Polish & English — runs fully in the browser after a one-time model download (cached in OPFS, ~63 MB per voice)
@@ -39,9 +39,9 @@ MIT, no signup, no tracking. The OpenAI key never leaves your machine except to 
 
 ## 🇵🇱 Polski
 
-🎙️ Nowy projekt: przeglądarkowy konwerter tekstu na mowę — głosy OpenAI z chmury **albo** w pełni offline Piper VITS na WebAssembly.
+🎙️ Nowy projekt: przeglądarkowy konwerter TTS — głosy OpenAI z chmury **albo** offline Piper VITS na WebAssembly.
 
-Po co: ciągle przeskakiwałem między płatnym cloudowym TTS dla jakości a darmowymi rozwiązaniami z ograniczeniami. Chciałem jednego narzędzia, które daje oba światy:
+Po co: przeskakiwałem między płatnym cloudowym TTS a darmowymi alternatywami. Chciałem jednego narzędzia dla obu:
 
 → OpenAI TTS (`tts-1`, `tts-1-hd`, `gpt-4o-mini-tts`) — lista głosów filtruje się automatycznie do tego, co wspiera wybrany model
 → Offline Piper VITS dla polskiego i angielskiego — działa w całości w przeglądarce po jednorazowym pobraniu modelu (cache w OPFS, ~63 MB na głos)
