@@ -18,7 +18,11 @@ import {
   removeExtraWhitespaces,
 } from '@/lib/text-processing';
 import { concatenateBuffers, mergeAudioBuffers } from '@/lib/audio-utils';
-import { isDownloaded as isLocalDownloaded, synthesize as synthesizeLocal } from '@/lib/local-tts';
+import {
+  isDownloaded as isLocalDownloaded,
+  resetSession as resetLocalSession,
+  synthesize as synthesizeLocal,
+} from '@/lib/local-tts';
 
 const TTS_ENDPOINT = '/api/tts';
 const CHUNK_SIZE = 4000;
@@ -429,6 +433,13 @@ export function useTTS({ engine, apiKey, voice, model, localVoiceId }: UseTTSPar
           continue;
         }
 
+        // Fresh WASM heap per item for local engine — onnxruntime-web
+        // fragments memory across sequential inferences and eventually
+        // throws std::bad_alloc. Reset before each item except the first.
+        if (engine === 'local' && i > 0) {
+          await resetLocalSession();
+        }
+
         updatedOutputs[i] = { ...output, status: 'processing' };
         onProgress([...updatedOutputs]);
 
@@ -446,13 +457,22 @@ export function useTTS({ engine, apiKey, voice, model, localVoiceId }: UseTTSPar
               throw new Error('No text to synthesize');
             }
 
+            const RESET_EVERY = 8;
             for (let j = 0; j < localChunks.length; j++) {
+              // Flush the onnxruntime-web WASM heap periodically. Without
+              // this, long items (30+ chunks) hit std::bad_alloc mid-way —
+              // fresh-session-per-item isn't enough, since fragmentation
+              // accumulates within a single file too.
+              if (j > 0 && j % RESET_EVERY === 0) {
+                await resetLocalSession();
+              }
               const blob = await synthesizeLocal(localChunks[j], localVoiceId);
               const buf = await blob.arrayBuffer();
               audioBuffers.push(buf);
               const inItemProgress = (j + 1) / localChunks.length;
               const globalProgress = Math.floor(((completedItems + inItemProgress) / totalItems) * 100);
               setProgress(Math.min(100, globalProgress));
+              await new Promise((resolve) => setTimeout(resolve, 0));
             }
 
             itemBlob =

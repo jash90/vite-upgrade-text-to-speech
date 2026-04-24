@@ -146,8 +146,10 @@ export const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 export const CHUNK_SIZE = 4000;
 // Piper's ONNX graph uses int32 tensor indices and overflows
 // ("SafeIntOnOverflow") well before the OpenAI character limit. Keep local
-// chunks small enough that the worst-case phoneme tensor stays in range.
-export const LOCAL_CHUNK_SIZE = 800;
+// chunks small to (a) stay in int32 range and (b) keep peak WASM allocation
+// per inference low — the WASM heap also runs out of memory ("std::bad_alloc")
+// over many sequential calls.
+export const LOCAL_CHUNK_SIZE = 500;
 
 export interface AudioOutput {
   id: string;
