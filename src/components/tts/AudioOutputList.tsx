@@ -78,27 +78,27 @@ function AudioOutputItem({
   };
 
   return (
-    <div className={`flex items-center justify-between p-3 rounded-lg border ${
+    <div className={`flex items-center justify-between gap-3 p-3 rounded-lg border ${
       output.sourceType === 'merged'
         ? 'bg-purple-50 border-purple-200 dark:bg-purple-900/20 dark:border-purple-700'
         : 'bg-white border-gray-200 dark:bg-gray-800 dark:border-gray-700'
     }`}>
-      <div className="flex items-center gap-3">
-        {getStatusIcon()}
-        <div className="flex flex-col">
-          <span className="font-medium text-gray-800 dark:text-gray-200">
+      <div className="flex items-center gap-3 min-w-0 flex-1">
+        <span className="shrink-0">{getStatusIcon()}</span>
+        <div className="flex flex-col min-w-0 flex-1">
+          <span className="font-medium text-gray-800 dark:text-gray-200 truncate" title={output.sourceType === 'merged' ? 'Merged Audio' : output.name}>
             {output.sourceType === 'merged' ? 'Merged Audio' : output.name}
           </span>
-          <span className="text-xs text-gray-500 dark:text-gray-400">
+          <span className="text-xs text-gray-500 dark:text-gray-400 truncate" title={output.filename}>
             {output.filename}
           </span>
           {output.error && (
-            <span className="text-xs text-red-500">{output.error}</span>
+            <span className="text-xs text-red-500 truncate" title={output.error}>{output.error}</span>
           )}
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 shrink-0">
         {getStatusBadge()}
 
         {output.status === 'success' && output.audioUrl && (
