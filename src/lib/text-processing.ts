@@ -103,6 +103,59 @@ export function splitTextIntoChunks(text: string, maxChunkSize: number = CHUNK_S
 }
 
 /**
+ * Splits text into chunks for local (Piper) synthesis.
+ *
+ * Unlike `splitTextIntoChunks`, this never throws — Piper summaries often
+ * contain long clauses with no periods, and the caller needs a guaranteed
+ * chunking. Boundary priority per chunk: sentence end (.!?), clause break
+ * (;:), whitespace, then hard cut.
+ */
+export function splitTextForLocalTTS(text: string, maxChunkSize: number): string[] {
+  const cleanedText = removeExtraWhitespaces(text);
+  if (cleanedText.length <= maxChunkSize) {
+    return cleanedText ? [cleanedText] : [];
+  }
+
+  const chunks: string[] = [];
+  let cursor = 0;
+
+  while (cursor < cleanedText.length) {
+    const remaining = cleanedText.length - cursor;
+    if (remaining <= maxChunkSize) {
+      chunks.push(cleanedText.slice(cursor).trim());
+      break;
+    }
+
+    const windowEnd = cursor + maxChunkSize;
+    const window = cleanedText.slice(cursor, windowEnd);
+
+    let breakAt = Math.max(
+      window.lastIndexOf('. '),
+      window.lastIndexOf('! '),
+      window.lastIndexOf('? '),
+      window.lastIndexOf('.\n'),
+      window.lastIndexOf('!\n'),
+      window.lastIndexOf('?\n'),
+    );
+
+    if (breakAt < maxChunkSize * 0.3) {
+      breakAt = Math.max(window.lastIndexOf('; '), window.lastIndexOf(': '), window.lastIndexOf(', '));
+    }
+
+    if (breakAt < maxChunkSize * 0.3) {
+      breakAt = window.lastIndexOf(' ');
+    }
+
+    const cutLen = breakAt > 0 ? breakAt + 1 : maxChunkSize;
+    const piece = cleanedText.slice(cursor, cursor + cutLen).trim();
+    if (piece) chunks.push(piece);
+    cursor += cutLen;
+  }
+
+  return chunks.filter((c) => c.length > 0);
+}
+
+/**
  * Calculates the number of chunks a text will be split into
  */
 export function estimateChunkCount(text: string, maxChunkSize: number = 4000): number {

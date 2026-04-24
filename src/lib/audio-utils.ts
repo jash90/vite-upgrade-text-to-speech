@@ -1,7 +1,7 @@
 /**
  * Audio utilities for proper audio merging using Web Audio API + lamejs MP3 encoding
  */
-import lamejs from 'lamejs';
+import lamejs from '@breezystack/lamejs';
 
 /**
  * Merges multiple audio ArrayBuffers into a single MP3 file
@@ -85,12 +85,10 @@ function audioBufferToMp3(audioBuffer: AudioBuffer): Blob {
     const leftChunk = leftInt16.subarray(i, Math.min(i + sampleBlockSize, numSamples));
     const rightChunk = rightInt16.subarray(i, Math.min(i + sampleBlockSize, numSamples));
 
-    let mp3buf: Int8Array;
-    if (numChannels === 1) {
-      mp3buf = mp3encoder.encodeBuffer(leftChunk);
-    } else {
-      mp3buf = mp3encoder.encodeBuffer(leftChunk, rightChunk);
-    }
+    const mp3buf =
+      numChannels === 1
+        ? mp3encoder.encodeBuffer(leftChunk)
+        : mp3encoder.encodeBuffer(leftChunk, rightChunk);
 
     if (mp3buf.length > 0) {
       mp3Data.push(new Uint8Array(mp3buf));
