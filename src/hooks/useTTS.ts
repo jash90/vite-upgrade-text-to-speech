@@ -2,6 +2,7 @@ import { useState, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { useToast } from '@/components/ui/use-toast';
 import {
+  LOCAL_CHUNK_SIZE,
   LOCAL_TEST_SENTENCES,
   LOCAL_VOICES,
   VOICE_SAMPLE_URLS,
@@ -11,7 +12,11 @@ import {
   type TTSEngine,
   type VoiceType,
 } from '@/types';
-import { splitTextIntoChunks, removeExtraWhitespaces } from '@/lib/text-processing';
+import {
+  splitTextForLocalTTS,
+  splitTextIntoChunks,
+  removeExtraWhitespaces,
+} from '@/lib/text-processing';
 import { concatenateBuffers, mergeAudioBuffers } from '@/lib/audio-utils';
 import { isDownloaded as isLocalDownloaded, synthesize as synthesizeLocal } from '@/lib/local-tts';
 
@@ -433,12 +438,27 @@ export function useTTS({ engine, apiKey, voice, model, localVoiceId }: UseTTSPar
           let itemBlob: Blob;
 
           if (engine === 'local') {
-            // Piper handles long text internally; no client-side chunking (WAV headers
-            // make naive byte concat invalid). One synth call per source.
-            const blob = await synthesizeLocal(cleanedText, localVoiceId);
-            const buf = await blob.arrayBuffer();
-            audioBuffers.push(buf);
-            itemBlob = blob;
+            // Piper's ONNX graph overflows int32 on long inputs
+            // ("SafeIntOnOverflow"). Chunk client-side and merge via
+            // Web Audio decode + MP3 re-encode (WAV byte-concat is invalid).
+            const localChunks = splitTextForLocalTTS(cleanedText, LOCAL_CHUNK_SIZE);
+            if (localChunks.length === 0) {
+              throw new Error('No text to synthesize');
+            }
+
+            for (let j = 0; j < localChunks.length; j++) {
+              const blob = await synthesizeLocal(localChunks[j], localVoiceId);
+              const buf = await blob.arrayBuffer();
+              audioBuffers.push(buf);
+              const inItemProgress = (j + 1) / localChunks.length;
+              const globalProgress = Math.floor(((completedItems + inItemProgress) / totalItems) * 100);
+              setProgress(Math.min(100, globalProgress));
+            }
+
+            itemBlob =
+              audioBuffers.length === 1
+                ? new Blob([audioBuffers[0]], { type: 'audio/wav' })
+                : await mergeAudioBuffers(audioBuffers);
             completedItems++;
             setProgress(Math.floor((completedItems / totalItems) * 100));
           } else {
@@ -458,10 +478,10 @@ export function useTTS({ engine, apiKey, voice, model, localVoiceId }: UseTTSPar
           }
 
           const itemUrl = URL.createObjectURL(itemBlob);
-          const outputFilename =
-            engine === 'local'
-              ? output.filename.replace(/\.mp3$/i, '.wav')
-              : output.filename;
+          const localIsWav = engine === 'local' && audioBuffers.length === 1;
+          const outputFilename = localIsWav
+            ? output.filename.replace(/\.mp3$/i, '.wav')
+            : output.filename.replace(/\.wav$/i, '.mp3');
 
           updatedOutputs[i] = {
             ...output,

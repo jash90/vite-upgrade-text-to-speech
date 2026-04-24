@@ -144,6 +144,10 @@ export const VOICE_SAMPLE_URLS: Partial<Record<VoiceType, string>> = {
 export const MAX_FILES = 10;
 export const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 export const CHUNK_SIZE = 4000;
+// Piper's ONNX graph uses int32 tensor indices and overflows
+// ("SafeIntOnOverflow") well before the OpenAI character limit. Keep local
+// chunks small enough that the worst-case phoneme tensor stays in range.
+export const LOCAL_CHUNK_SIZE = 800;
 
 export interface AudioOutput {
   id: string;
