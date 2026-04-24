@@ -64,6 +64,18 @@ export async function synthesize(text: string, voiceId: string): Promise<Blob> {
   return session.predict(text);
 }
 
+/**
+ * Drops the cached Piper singleton so the next `synthesize()` call creates a
+ * fresh session, releasing the onnxruntime-web WASM heap. Long batches hit
+ * "std::bad_alloc" from OrtRun otherwise — the heap fragments over dozens of
+ * inferences and eventually fails to allocate an output tensor. Model weights
+ * stay cached in OPFS, so reload cost is just re-inflating them into WASM.
+ */
+export async function resetSession(): Promise<void> {
+  const mod = await loadPiper();
+  mod.TtsSession._instance = null;
+}
+
 export async function downloadModel(
   voiceId: string,
   onProgress?: LocalProgressCallback,
