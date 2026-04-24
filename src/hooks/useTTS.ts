@@ -74,6 +74,30 @@ export function useTTS({ engine, apiKey, voice, model, localVoiceId }: UseTTSPar
   const audioUrlRef = useRef<string | null>(null);
   const testAudioUrlRef = useRef<string | null>(null);
 
+  // Progress updates fire dozens of times per second (axios onDownloadProgress
+  // on the OpenAI path, per-chunk in the local path). Each call schedules a
+  // React render of TTSPage + all its children, which competes with CSS
+  // animations for paint budget. Coalesce into at most one setProgress per
+  // animation frame; the latest value wins and final 100 always flushes.
+  const latestProgress = useRef<number>(0);
+  const progressFrame = useRef<number | null>(null);
+  const setProgressThrottled = useCallback((value: number) => {
+    latestProgress.current = value;
+    if (progressFrame.current !== null) return;
+    progressFrame.current = requestAnimationFrame(() => {
+      progressFrame.current = null;
+      setProgress(latestProgress.current);
+    });
+  }, []);
+  const flushProgress = useCallback((value: number) => {
+    if (progressFrame.current !== null) {
+      cancelAnimationFrame(progressFrame.current);
+      progressFrame.current = null;
+    }
+    latestProgress.current = value;
+    setProgress(value);
+  }, []);
+
   /**
    * Sends a text chunk to OpenAI TTS API and returns audio buffer
    */
@@ -203,7 +227,7 @@ export function useTTS({ engine, apiKey, voice, model, localVoiceId }: UseTTSPar
         return;
       }
 
-      setProgress(0);
+      flushProgress(0);
       setIsProcessing(true);
 
       // Clean up previous audio URL
@@ -222,7 +246,7 @@ export function useTTS({ engine, apiKey, voice, model, localVoiceId }: UseTTSPar
               100,
               Math.floor(((i + chunkProgress / 100) / totalChunks) * 100)
             );
-            setProgress(currentProgress);
+            setProgressThrottled(currentProgress);
           });
 
           if (audioData) {
@@ -255,10 +279,10 @@ export function useTTS({ engine, apiKey, voice, model, localVoiceId }: UseTTSPar
         });
       } finally {
         setIsProcessing(false);
-        setProgress(100);
+        flushProgress(100);
       }
     },
-    [apiKey, sendTextForTTS, cleanupBlobUrl, mergeBuffers, toast]
+    [apiKey, sendTextForTTS, cleanupBlobUrl, mergeBuffers, toast, flushProgress, setProgressThrottled]
   );
 
   /**
@@ -325,7 +349,7 @@ export function useTTS({ engine, apiKey, voice, model, localVoiceId }: UseTTSPar
 
     try {
       const audioData = await sendTextForTTS(TEST_TEXT, 0, (percentage) => {
-        setProgress(percentage);
+        setProgressThrottled(percentage);
       });
 
       if (audioData) {
@@ -348,7 +372,7 @@ export function useTTS({ engine, apiKey, voice, model, localVoiceId }: UseTTSPar
     } finally {
       setIsTesting(false);
     }
-  }, [engine, apiKey, voice, localVoiceId, sendTextForTTS, cleanupBlobUrl, toast]);
+  }, [engine, apiKey, voice, localVoiceId, sendTextForTTS, cleanupBlobUrl, toast, setProgressThrottled]);
 
   /**
    * Downloads the generated audio file
@@ -417,7 +441,7 @@ export function useTTS({ engine, apiKey, voice, model, localVoiceId }: UseTTSPar
       }
 
       setIsProcessing(true);
-      setProgress(0);
+      flushProgress(0);
 
       const updatedOutputs = [...outputs];
       const totalItems = outputs.length;
@@ -471,8 +495,7 @@ export function useTTS({ engine, apiKey, voice, model, localVoiceId }: UseTTSPar
               audioBuffers.push(buf);
               const inItemProgress = (j + 1) / localChunks.length;
               const globalProgress = Math.floor(((completedItems + inItemProgress) / totalItems) * 100);
-              setProgress(Math.min(100, globalProgress));
-              await new Promise((resolve) => setTimeout(resolve, 0));
+              setProgressThrottled(Math.min(100, globalProgress));
             }
 
             itemBlob =
@@ -480,21 +503,21 @@ export function useTTS({ engine, apiKey, voice, model, localVoiceId }: UseTTSPar
                 ? new Blob([audioBuffers[0]], { type: 'audio/wav' })
                 : await mergeAudioBuffers(audioBuffers);
             completedItems++;
-            setProgress(Math.floor((completedItems / totalItems) * 100));
+            setProgressThrottled(Math.floor((completedItems / totalItems) * 100));
           } else {
             const chunks = splitTextIntoChunks(cleanedText, CHUNK_SIZE);
             for (let j = 0; j < chunks.length; j++) {
               const audioData = await sendTextForTTS(chunks[j], j, (chunkProgress) => {
                 const activeItemProgressRaw = (j + chunkProgress / 100) / chunks.length;
                 const globalProgress = Math.floor(((completedItems + activeItemProgressRaw) / totalItems) * 100);
-                setProgress(Math.min(100, globalProgress));
+                setProgressThrottled(Math.min(100, globalProgress));
               });
               if (audioData) audioBuffers.push(audioData);
               else throw new Error(`Failed to generate audio for chunk ${j + 1}`);
             }
             itemBlob = await mergeBuffers(audioBuffers);
             completedItems++;
-            setProgress(Math.floor((completedItems / totalItems) * 100));
+            setProgressThrottled(Math.floor((completedItems / totalItems) * 100));
           }
 
           const itemUrl = URL.createObjectURL(itemBlob);
@@ -548,7 +571,7 @@ export function useTTS({ engine, apiKey, voice, model, localVoiceId }: UseTTSPar
       }
 
       setIsProcessing(false);
-      setProgress(100);
+      flushProgress(100);
 
       const successCount = updatedOutputs.filter((o) => o.status === 'success').length;
       if (successCount > 0) {
@@ -560,7 +583,7 @@ export function useTTS({ engine, apiKey, voice, model, localVoiceId }: UseTTSPar
 
       return updatedOutputs;
     },
-    [engine, apiKey, localVoiceId, sendTextForTTS, mergeBuffers, toast]
+    [engine, apiKey, localVoiceId, sendTextForTTS, mergeBuffers, toast, flushProgress, setProgressThrottled]
   );
 
   /**
@@ -572,10 +595,10 @@ export function useTTS({ engine, apiKey, voice, model, localVoiceId }: UseTTSPar
 
     setAudioUrl(null);
     setTestAudioUrl(null);
-    setProgress(0);
+    flushProgress(0);
     setIsProcessing(false);
     setIsTesting(false);
-  }, [cleanupBlobUrl]);
+  }, [cleanupBlobUrl, flushProgress]);
 
   return {
     isProcessing,

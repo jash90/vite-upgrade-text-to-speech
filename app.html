@@ -24,6 +24,12 @@
 
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%236366f1'/><text x='50%25' y='54%25' text-anchor='middle' fill='white' font-family='system-ui' font-size='40' font-weight='700'>TTS</text></svg>" />
 
+    <!-- Piper WASM + ONNX runtime WASM are fetched from jsdelivr on first
+         local TTS use. Pre-warm the connection so the initial request
+         isn't bottlenecked on TLS + DNS. -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net" />
+
     <script type="module" src="/src/main.tsx"></script>
   </head>
   <body class="bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-950 text-gray-900 dark:text-gray-100 antialiased min-h-screen">

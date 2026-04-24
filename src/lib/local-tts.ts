@@ -1,23 +1,14 @@
 /**
- * Thin wrapper around @mintplex-labs/piper-tts-web.
+ * Public API for Piper TTS — thin RPC client over a dedicated Web Worker.
  *
- * The underlying library pulls in onnxruntime-web and spawns a Worker for
- * inference. Dynamic imports keep all of that out of the main bundle so the
- * OpenAI-only flow stays fast and is not affected if the library fails to
- * load (e.g. unsupported browser, blocked CDN).
+ * All Piper/onnxruntime-web work happens inside `local-tts-worker.ts` so
+ * inference (hundreds of ms per sentence) never blocks the UI thread.
+ * CSS animations, spinners and scroll stay smooth during generation.
  *
- * Quirks worked around here:
- *   1. piper-tts-web v1.0.4 hardcodes a cdnjs onnxruntime-web 1.18.0 path
- *      that never hosted the expected `.mjs` files (404). We override
- *      `wasmPaths.onnxWasm` to a working jsdelivr URL pinned to the
- *      onnxruntime-web JS version we install, to avoid WASM<->JS ABI
- *      mismatches ("e.getValue is not a function").
- *   2. The library keeps a static singleton (`TtsSession._instance`) and
- *      `create()` reuses it regardless of voiceId — only overwriting the
- *      `voiceId` field while the loaded ONNX model stays from the first
- *      voice. Switching voices looks like it works in the UI but synth
- *      keeps using the original model. We null out the singleton before
- *      creating a session for a different voice.
+ * The public surface (synthesize / resetSession / downloadModel /
+ * isDownloaded / listDownloaded / removeModel) is unchanged, so callers
+ * in `useTTS.ts` and `LocalVoiceSelector.tsx` don't need to know a worker
+ * exists.
  */
 
 export interface LocalProgress {
@@ -27,78 +18,124 @@ export interface LocalProgress {
 }
 export type LocalProgressCallback = (p: LocalProgress) => void;
 
-type PiperModule = typeof import('@mintplex-labs/piper-tts-web');
-type TtsSessionInstance = InstanceType<PiperModule['TtsSession']>;
+type WorkerRequest =
+  | { id: number; type: 'synthesize'; voiceId: string; text: string }
+  | { id: number; type: 'reset' }
+  | { id: number; type: 'download'; voiceId: string }
+  | { id: number; type: 'isDownloaded'; voiceId: string }
+  | { id: number; type: 'listDownloaded' }
+  | { id: number; type: 'removeModel'; voiceId: string };
 
-const WASM_PATHS = {
-  onnxWasm: 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.24.3/dist/',
-  piperData:
-    'https://cdn.jsdelivr.net/npm/@diffusionstudio/piper-wasm@1.0.0/build/piper_phonemize.data',
-  piperWasm:
-    'https://cdn.jsdelivr.net/npm/@diffusionstudio/piper-wasm@1.0.0/build/piper_phonemize.wasm',
-};
+type WorkerResponse =
+  | { id: number; type: 'progress'; progress: LocalProgress }
+  | { id: number; type: 'result'; buffer?: ArrayBuffer; value?: unknown }
+  | { id: number; type: 'error'; message: string };
 
-let modulePromise: Promise<PiperModule> | null = null;
-
-function loadPiper(): Promise<PiperModule> {
-  if (!modulePromise) {
-    modulePromise = import('@mintplex-labs/piper-tts-web');
-  }
-  return modulePromise;
+interface PendingCall {
+  resolve: (value: { buffer?: ArrayBuffer; value?: unknown }) => void;
+  reject: (reason: Error) => void;
+  onProgress?: LocalProgressCallback;
 }
 
-async function getSession(voiceId: string): Promise<TtsSessionInstance> {
-  const mod = await loadPiper();
-  const existing = mod.TtsSession._instance;
-  if (existing && existing.voiceId === voiceId && existing.ready) {
-    return existing;
+// Plain Omit collapses discriminated unions — voiceId/text get unified away.
+// Distribute Omit across each member so type stays precise per variant.
+type DistributiveOmit<T, K extends keyof T> = T extends unknown
+  ? Omit<T, K>
+  : never;
+
+let worker: Worker | null = null;
+let nextId = 0;
+const pending = new Map<number, PendingCall>();
+
+function resolveWorkerUrl(): string | URL {
+  // scripts/build.ts injects this at build time after emitting the
+  // hashed worker file. Absent in dev — Bun's dev server serves the
+  // TS module URL directly, so the new URL() fallback works there.
+  const configured = (globalThis as { __PIPER_WORKER_URL__?: string })
+    .__PIPER_WORKER_URL__;
+  if (typeof configured === 'string' && configured.length > 0) {
+    return configured;
   }
-  // Force re-init with the requested voice. The library otherwise returns
-  // the stale singleton with the first-loaded model.
-  mod.TtsSession._instance = null;
-  return mod.TtsSession.create({ voiceId, wasmPaths: WASM_PATHS });
+  return new URL('./local-tts-worker.ts', import.meta.url);
+}
+
+function getWorker(): Worker {
+  if (worker) return worker;
+  worker = new Worker(resolveWorkerUrl(), {
+    type: 'module',
+    name: 'piper-tts',
+  });
+  worker.addEventListener('message', (event: MessageEvent<WorkerResponse>) => {
+    const msg = event.data;
+    const call = pending.get(msg.id);
+    if (!call) return;
+    if (msg.type === 'progress') {
+      call.onProgress?.(msg.progress);
+      return;
+    }
+    pending.delete(msg.id);
+    if (msg.type === 'result') {
+      call.resolve({ buffer: msg.buffer, value: msg.value });
+    } else {
+      call.reject(new Error(msg.message));
+    }
+  });
+  worker.addEventListener('error', (event) => {
+    // Surface worker bootstrap failures (bad CDN, module load, etc.) as
+    // rejections on every in-flight call. Without this they hang forever.
+    const err = new Error(event.message || 'Piper worker error');
+    for (const call of pending.values()) call.reject(err);
+    pending.clear();
+  });
+  return worker;
+}
+
+function request(
+  req: DistributiveOmit<WorkerRequest, 'id'>,
+  onProgress?: LocalProgressCallback,
+): Promise<{ buffer?: ArrayBuffer; value?: unknown }> {
+  return new Promise((resolve, reject) => {
+    const id = ++nextId;
+    pending.set(id, { resolve, reject, onProgress });
+    getWorker().postMessage({ ...req, id });
+  });
 }
 
 export async function synthesize(text: string, voiceId: string): Promise<Blob> {
-  const session = await getSession(voiceId);
-  return session.predict(text);
+  const { buffer } = await request({ type: 'synthesize', voiceId, text });
+  if (!buffer) throw new Error('Piper worker returned no audio buffer');
+  // Piper outputs a WAV byte stream via its internal Blob. We got the raw
+  // bytes back through a transferable, so re-wrap with the same mime type.
+  return new Blob([buffer], { type: 'audio/wav' });
 }
 
 /**
- * Drops the cached Piper singleton so the next `synthesize()` call creates a
- * fresh session, releasing the onnxruntime-web WASM heap. Long batches hit
- * "std::bad_alloc" from OrtRun otherwise — the heap fragments over dozens of
- * inferences and eventually fails to allocate an output tensor. Model weights
- * stay cached in OPFS, so reload cost is just re-inflating them into WASM.
+ * Drops the worker's cached Piper singleton so the next `synthesize()`
+ * re-initialises the onnxruntime-web WASM heap. Long batches fragment
+ * the heap and eventually throw std::bad_alloc — model weights stay
+ * cached in OPFS so reload cost is just re-inflating them into WASM.
  */
 export async function resetSession(): Promise<void> {
-  const mod = await loadPiper();
-  mod.TtsSession._instance = null;
+  await request({ type: 'reset' });
 }
 
 export async function downloadModel(
   voiceId: string,
   onProgress?: LocalProgressCallback,
 ): Promise<void> {
-  const { download } = await loadPiper();
-  await download(voiceId, onProgress);
+  await request({ type: 'download', voiceId }, onProgress);
 }
 
 export async function isDownloaded(voiceId: string): Promise<boolean> {
-  const { stored } = await loadPiper();
-  const ids = await stored();
-  return ids.includes(voiceId);
+  const { value } = await request({ type: 'isDownloaded', voiceId });
+  return Boolean(value);
 }
 
 export async function listDownloaded(): Promise<string[]> {
-  const { stored } = await loadPiper();
-  return stored();
+  const { value } = await request({ type: 'listDownloaded' });
+  return (value as string[]) ?? [];
 }
 
 export async function removeModel(voiceId: string): Promise<void> {
-  const mod = await loadPiper();
-  if (mod.TtsSession._instance && mod.TtsSession._instance.voiceId === voiceId) {
-    mod.TtsSession._instance = null;
-  }
-  await mod.remove(voiceId);
+  await request({ type: 'removeModel', voiceId });
 }
