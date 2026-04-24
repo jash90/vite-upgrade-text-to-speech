@@ -82,7 +82,12 @@ export function useTTS({ engine, apiKey, voice, model, localVoiceId }: UseTTSPar
   const latestProgress = useRef<number>(0);
   const progressFrame = useRef<number | null>(null);
   const setProgressThrottled = useCallback((value: number) => {
-    latestProgress.current = value;
+    // Floor a bar at 1 during progress updates — Math.floor in the
+    // per-chunk math bottoms out at 0 for early axios progress events
+    // and the first chunk of a multi-file batch, which visually
+    // resets our initial 1% nudge. flushProgress() stays unclamped so
+    // reset() can still park at 0 and completion can snap to 100.
+    latestProgress.current = Math.max(1, value);
     if (progressFrame.current !== null) return;
     progressFrame.current = requestAnimationFrame(() => {
       progressFrame.current = null;
@@ -227,7 +232,10 @@ export function useTTS({ engine, apiKey, voice, model, localVoiceId }: UseTTSPar
         return;
       }
 
-      flushProgress(0);
+      // Start at 1% so the bar shows immediate activity — Math.floor in the
+      // loop keeps it at 0 until the first chunk is done, which reads as
+      // "nothing is happening".
+      flushProgress(1);
       setIsProcessing(true);
 
       // Clean up previous audio URL
@@ -441,7 +449,9 @@ export function useTTS({ engine, apiKey, voice, model, localVoiceId }: UseTTSPar
       }
 
       setIsProcessing(true);
-      flushProgress(0);
+      // Start at 1%: first chunk can take several seconds and a 0-pinned
+      // bar reads as "stuck", especially during model load on first use.
+      flushProgress(1);
 
       const updatedOutputs = [...outputs];
       const totalItems = outputs.length;
