@@ -14,6 +14,17 @@ const result = await Bun.build({
   splitting: true,
   target: "browser",
   sourcemap: "linked",
+  // Include [name] + [hash] for chunks/assets so emissions from different
+  // HTML entries can't collide (older Bun with splitting + multi-HTML).
+  // Keep HTML entry filenames stable (index.html, app.html) but force a
+  // [name]+[hash] template for emitted chunks and assets. Older Bun with
+  // splitting + multi-HTML can otherwise collide on shared CSS imports
+  // ("Multiple files share the same output path: chunk-xxx.css").
+  naming: {
+    entry: "[dir]/[name].[ext]",
+    chunk: "[name]-[hash].[ext]",
+    asset: "[name]-[hash].[ext]",
+  },
 });
 
 if (!result.success) {
