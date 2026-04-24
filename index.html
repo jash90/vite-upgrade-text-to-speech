@@ -70,8 +70,6 @@
         ]
       }
     </script>
-
-    <script type="module" src="/src/main.tsx"></script>
   </head>
   <body class="bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-950 text-gray-900 dark:text-gray-100 antialiased">
 
@@ -110,7 +108,7 @@
         </p>
         <div class="mt-8 flex flex-wrap items-center justify-center gap-3">
           <a
-            href="#app"
+            href="/app"
             class="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 px-5 py-3 text-white font-semibold shadow-lg hover:shadow-xl hover:scale-[1.02] transition"
           >
             Open the converter →
@@ -321,9 +319,18 @@
         </div>
       </section>
 
-      <!-- App anchor: React mounts here -->
-      <section id="app" class="scroll-mt-8 pt-4">
-        <div id="root"></div>
+      <!-- Closing CTA -->
+      <section class="container mx-auto max-w-3xl px-6 py-16 text-center">
+        <h2 class="text-2xl sm:text-3xl font-bold">Ready to convert something?</h2>
+        <p class="mt-2 text-gray-600 dark:text-gray-300">
+          The converter runs on its own page — bookmark it if you use it often.
+        </p>
+        <a
+          href="/app"
+          class="mt-6 inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 px-5 py-3 text-white font-semibold shadow-lg hover:shadow-xl hover:scale-[1.02] transition"
+        >
+          Open the converter →
+        </a>
       </section>
     </main>
 

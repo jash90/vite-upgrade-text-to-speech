@@ -125,11 +125,11 @@ export default function TTSPage() {
       <Card className="w-full shadow-xl">
         <CardHeader>
           <CardTitle className="text-2xl md:text-3xl font-bold text-center text-gray-800 dark:text-gray-100">
-            Try it now
+            Text-to-Speech Converter
           </CardTitle>
           <CardDescription className="text-center text-gray-600 dark:text-gray-300">
-            Your API key stays in the browser — it's only forwarded to OpenAI through
-            the Edge proxy, never stored server-side.
+            OpenAI or offline Piper VITS. Your API key stays in the browser — only
+            forwarded to OpenAI through the Edge proxy, never stored server-side.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
