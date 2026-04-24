@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://vite-upgrade-text-to-speech.vercel.app/sitemap.xml
