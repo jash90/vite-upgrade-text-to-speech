@@ -1,8 +1,9 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-/* Explicit source so Tailwind scans the static landing markup too. */
+/* Explicit sources so Tailwind scans static landing + app shell markup. */
 @source "../index.html";
+@source "../app.html";
 
 @custom-variant dark (&:is(.dark *));
 

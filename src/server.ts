@@ -1,4 +1,5 @@
 import index from "../index.html";
+import app from "../app.html";
 import { file } from "bun";
 import { join } from "node:path";
 
@@ -26,6 +27,7 @@ const server = Bun.serve({
   },
   routes: {
     "/": index,
+    "/app": app,
     "/api/tts": {
       async POST(req) {
         const auth = req.headers.get("authorization");

@@ -3,5 +3,9 @@
   "buildCommand": "bun run build",
   "outputDirectory": "dist",
   "installCommand": "bun install",
-  "framework": null
+  "framework": null,
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/app", "destination": "/app.html" }
+  ]
 }

@@ -7,7 +7,7 @@ const outdir = "./dist";
 await rm(outdir, { recursive: true, force: true });
 
 const result = await Bun.build({
-  entrypoints: ["./index.html"],
+  entrypoints: ["./index.html", "./app.html"],
   outdir,
   plugins: [tailwindPlugin],
   minify: true,
