@@ -20,7 +20,6 @@ export type LocalProgressCallback = (p: LocalProgress) => void;
 
 type WorkerRequest =
   | { id: number; type: 'synthesize'; voiceId: string; text: string }
-  | { id: number; type: 'reset' }
   | { id: number; type: 'download'; voiceId: string }
   | { id: number; type: 'isDownloaded'; voiceId: string }
   | { id: number; type: 'listDownloaded' }
@@ -110,13 +109,24 @@ export async function synthesize(text: string, voiceId: string): Promise<Blob> {
 }
 
 /**
- * Drops the worker's cached Piper singleton so the next `synthesize()`
- * re-initialises the onnxruntime-web WASM heap. Long batches fragment
- * the heap and eventually throw std::bad_alloc — model weights stay
- * cached in OPFS so reload cost is just re-inflating them into WASM.
+ * Terminates the Piper Worker so its onnxruntime-web WASM heap is
+ * actually reclaimed. Nulling the JS-side TtsSession singleton is not
+ * enough — WebAssembly linear memory never shrinks or compacts, so long
+ * batches fragment the heap until ORT throws std::bad_alloc on the next
+ * tensor allocation or session create. Model weights stay cached in
+ * OPFS, so the next synthesize() just respawns a fresh Worker and
+ * re-inflates them — no network download.
  */
 export async function resetSession(): Promise<void> {
-  await request({ type: 'reset' });
+  if (!worker) return;
+  const dying = worker;
+  worker = null;
+  // Callers await sequentially so this map is usually empty, but reject
+  // any stragglers so their awaits don't hang after the Worker dies.
+  const err = new Error('Piper worker terminated for reset');
+  for (const call of pending.values()) call.reject(err);
+  pending.clear();
+  dying.terminate();
 }
 
 export async function downloadModel(
