@@ -5,9 +5,9 @@ export function Toaster() {
 
   return (
     <div className="fixed bottom-4 right-4 z-50">
-      {toasts.map((toast, index) => (
+      {toasts.map((toast) => (
         <div
-          key={index}
+          key={toast.id}
           className={`mb-2 p-4 rounded-md shadow-md ${
             toast.variant === 'destructive' ? 'bg-red-500 text-white' : 'bg-gray-800 text-white'
           }`}

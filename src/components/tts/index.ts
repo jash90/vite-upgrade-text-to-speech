@@ -3,6 +3,8 @@ export { FileList } from './FileList';
 export { FileUploader } from './FileUploader';
 export { ApiKeyInput } from './ApiKeyInput';
 export { VoiceSelector } from './VoiceSelector';
+export { EngineSelector } from './EngineSelector';
+export { LocalVoiceSelector } from './LocalVoiceSelector';
 export { ConvertButton } from './ConvertButton';
 export { ProgressIndicator } from './ProgressIndicator';
 export { AudioPlayer } from './AudioPlayer';
