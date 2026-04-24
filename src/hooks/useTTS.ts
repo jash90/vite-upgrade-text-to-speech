@@ -1,18 +1,30 @@
 import { useState, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { useToast } from '@/components/ui/use-toast';
-import type { VoiceType, AudioOutput } from '@/types';
+import {
+  LOCAL_TEST_SENTENCES,
+  LOCAL_VOICES,
+  VOICE_SAMPLE_URLS,
+  type AudioOutput,
+  type LocalLang,
+  type ModelType,
+  type TTSEngine,
+  type VoiceType,
+} from '@/types';
 import { splitTextIntoChunks, removeExtraWhitespaces } from '@/lib/text-processing';
-import { concatenateBuffers } from '@/lib/audio-utils';
+import { concatenateBuffers, mergeAudioBuffers } from '@/lib/audio-utils';
+import { isDownloaded as isLocalDownloaded, synthesize as synthesizeLocal } from '@/lib/local-tts';
 
-const OPENAI_TTS_ENDPOINT = 'https://api.openai.com/v1/audio/speech';
-const TTS_MODEL = 'tts-1';
+const TTS_ENDPOINT = '/api/tts';
 const CHUNK_SIZE = 4000;
 const TEST_TEXT = 'This is a test of the selected voice.';
 
 interface UseTTSParams {
+  engine: TTSEngine;
   apiKey: string;
   voice: VoiceType;
+  model: ModelType;
+  localVoiceId: string;
 }
 
 interface UseTTSResult {
@@ -40,7 +52,7 @@ interface UseTTSResult {
  * @param params.voice - Voice type to use for TTS
  * @returns TTS controls and state
  */
-export function useTTS({ apiKey, voice }: UseTTSParams): UseTTSResult {
+export function useTTS({ engine, apiKey, voice, model, localVoiceId }: UseTTSParams): UseTTSResult {
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [isTesting, setIsTesting] = useState<boolean>(false);
   const [progress, setProgress] = useState<number>(0);
@@ -65,11 +77,11 @@ export function useTTS({ apiKey, voice }: UseTTSParams): UseTTSResult {
       const textLength = text.length;
       try {
         const response = await axios.post<ArrayBuffer>(
-          OPENAI_TTS_ENDPOINT,
+          TTS_ENDPOINT,
           {
-            model: TTS_MODEL,
+            model,
             input: text,
-            voice: voice,
+            voice,
           },
           {
             headers: {
@@ -136,7 +148,7 @@ export function useTTS({ apiKey, voice }: UseTTSParams): UseTTSResult {
         return null;
       }
     },
-    [apiKey, voice, toast]
+    [apiKey, voice, model, toast]
   );
 
   /**
@@ -241,39 +253,77 @@ export function useTTS({ apiKey, voice }: UseTTSParams): UseTTSResult {
   );
 
   /**
-   * Tests the selected voice with sample text
+   * Tests the selected voice. Prefers OpenAI's public voice preview CDN
+   * (no API key, no API call, no cost). Falls back to API generation only
+   * when the voice has no preview or the CDN fetch fails.
    */
   const testVoice = useCallback(async (): Promise<void> => {
-    if (!apiKey) {
-      toast({
-        title: 'Error',
-        description: 'Please enter your OpenAI API key.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
     setIsTesting(true);
-
-    // Clean up previous test audio URL
     cleanupBlobUrl(testAudioUrlRef);
     setTestAudioUrl(null);
 
+    if (engine === 'local') {
+      try {
+        const voiceMeta = LOCAL_VOICES.find((v) => v.voiceId === localVoiceId);
+        const lang: LocalLang = voiceMeta?.lang ?? 'en';
+        const sentence = LOCAL_TEST_SENTENCES[lang];
+        const blob = await synthesizeLocal(sentence, localVoiceId);
+        const url = URL.createObjectURL(blob);
+        testAudioUrlRef.current = url;
+        setTestAudioUrl(url);
+      } catch (error) {
+        console.error('Local TTS test failed:', error);
+        toast({
+          title: 'Error',
+          description:
+            error instanceof Error
+              ? `Local TTS failed: ${error.message}`
+              : 'Local TTS failed. Did you download the model?',
+          variant: 'destructive',
+        });
+      } finally {
+        setIsTesting(false);
+      }
+      return;
+    }
+
+    const sampleUrl = VOICE_SAMPLE_URLS[voice];
+    if (sampleUrl) {
+      try {
+        const head = await fetch(sampleUrl, { method: 'HEAD' });
+        if (head.ok) {
+          setTestAudioUrl(sampleUrl);
+          setIsTesting(false);
+          return;
+        }
+      } catch {
+        // fall through to API
+      }
+    }
+
+    if (!apiKey) {
+      toast({
+        title: 'Error',
+        description:
+          sampleUrl
+            ? 'Preview unavailable — API key required to generate a sample.'
+            : 'This voice has no public preview. Enter an API key to generate a sample.',
+        variant: 'destructive',
+      });
+      setIsTesting(false);
+      return;
+    }
+
     try {
       const audioData = await sendTextForTTS(TEST_TEXT, 0, (percentage) => {
-        // For testing, just show the download percentage directly
-        // We don't expose progress in the UI for testing explicitly, but we could if we wanted
-        // For now, let's update the main progress state just in case
         setProgress(percentage);
       });
 
       if (audioData) {
         const audioBlob = new Blob([audioData], { type: 'audio/mp3' });
         const newTestAudioUrl = URL.createObjectURL(audioBlob);
-
         testAudioUrlRef.current = newTestAudioUrl;
         setTestAudioUrl(newTestAudioUrl);
-
         toast({
           title: 'Success',
           description: 'Voice test generated successfully!',
@@ -289,7 +339,7 @@ export function useTTS({ apiKey, voice }: UseTTSParams): UseTTSResult {
     } finally {
       setIsTesting(false);
     }
-  }, [apiKey, sendTextForTTS, cleanupBlobUrl, toast]);
+  }, [engine, apiKey, voice, localVoiceId, sendTextForTTS, cleanupBlobUrl, toast]);
 
   /**
    * Downloads the generated audio file
@@ -322,7 +372,7 @@ export function useTTS({ apiKey, voice }: UseTTSParams): UseTTSResult {
     (url: string, filename: string): void => {
       const link = document.createElement('a');
       link.href = url;
-      link.download = filename.endsWith('.mp3') ? filename : `${filename}.mp3`;
+      link.download = /\.(mp3|wav|ogg|m4a)$/i.test(filename) ? filename : `${filename}.mp3`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -339,10 +389,19 @@ export function useTTS({ apiKey, voice }: UseTTSParams): UseTTSResult {
       outputs: AudioOutput[],
       onProgress: (outputs: AudioOutput[]) => void
     ): Promise<AudioOutput[]> => {
-      if (!apiKey) {
+      if (engine === 'openai' && !apiKey) {
         toast({
           title: 'Error',
           description: 'Please enter your OpenAI API key.',
+          variant: 'destructive',
+        });
+        return outputs;
+      }
+
+      if (engine === 'local' && !(await isLocalDownloaded(localVoiceId))) {
+        toast({
+          title: 'Error',
+          description: 'Download the selected local model before converting.',
           variant: 'destructive',
         });
         return outputs;
@@ -354,56 +413,64 @@ export function useTTS({ apiKey, voice }: UseTTSParams): UseTTSResult {
       const updatedOutputs = [...outputs];
       const totalItems = outputs.length;
       let completedItems = 0;
+      const successBuffersByIndex = new Map<number, ArrayBuffer[]>();
 
       for (let i = 0; i < updatedOutputs.length; i++) {
         const output = updatedOutputs[i];
 
-        // Skip if no text
         if (!output.text || output.text.trim().length === 0) {
           updatedOutputs[i] = { ...output, status: 'error', error: 'No text to convert' };
           onProgress([...updatedOutputs]);
           continue;
         }
 
-        // Update status to processing
         updatedOutputs[i] = { ...output, status: 'processing' };
         onProgress([...updatedOutputs]);
 
-
         try {
           const cleanedText = removeExtraWhitespaces(output.text);
-          const chunks = splitTextIntoChunks(cleanedText, CHUNK_SIZE);
           const audioBuffers: ArrayBuffer[] = [];
+          let itemBlob: Blob;
 
-          for (let j = 0; j < chunks.length; j++) {
-            const audioData = await sendTextForTTS(chunks[j], j, (chunkProgress) => {
-              // Calculate progress for this specific item (0-100%)
-              // const itemProgress = (j + chunkProgress / 100) / chunks.length;
-
-              // Calculate global progress
-              // Global = (Completed Items + Current Item Progress) / Total Items
-              const activeItemProgressRaw = (j + chunkProgress / 100) / chunks.length;
-              const globalProgress = Math.floor(((completedItems + activeItemProgressRaw) / totalItems) * 100);
-
-              setProgress(Math.min(100, globalProgress));
-            });
-
-            if (audioData) {
-              audioBuffers.push(audioData);
-            } else {
-              throw new Error(`Failed to generate audio for chunk ${j + 1}`);
+          if (engine === 'local') {
+            // Piper handles long text internally; no client-side chunking (WAV headers
+            // make naive byte concat invalid). One synth call per source.
+            const blob = await synthesizeLocal(cleanedText, localVoiceId);
+            const buf = await blob.arrayBuffer();
+            audioBuffers.push(buf);
+            itemBlob = blob;
+            completedItems++;
+            setProgress(Math.floor((completedItems / totalItems) * 100));
+          } else {
+            const chunks = splitTextIntoChunks(cleanedText, CHUNK_SIZE);
+            for (let j = 0; j < chunks.length; j++) {
+              const audioData = await sendTextForTTS(chunks[j], j, (chunkProgress) => {
+                const activeItemProgressRaw = (j + chunkProgress / 100) / chunks.length;
+                const globalProgress = Math.floor(((completedItems + activeItemProgressRaw) / totalItems) * 100);
+                setProgress(Math.min(100, globalProgress));
+              });
+              if (audioData) audioBuffers.push(audioData);
+              else throw new Error(`Failed to generate audio for chunk ${j + 1}`);
             }
+            itemBlob = await mergeBuffers(audioBuffers);
+            completedItems++;
+            setProgress(Math.floor((completedItems / totalItems) * 100));
           }
 
-          // Merge audio buffers and create URL
-          const mergedAudioBlob = await mergeBuffers(audioBuffers);
-          const newAudioUrl = URL.createObjectURL(mergedAudioBlob);
+          const itemUrl = URL.createObjectURL(itemBlob);
+          const outputFilename =
+            engine === 'local'
+              ? output.filename.replace(/\.mp3$/i, '.wav')
+              : output.filename;
 
-          updatedOutputs[i] = { ...output, status: 'success', audioUrl: newAudioUrl };
-          completedItems++;
+          updatedOutputs[i] = {
+            ...output,
+            status: 'success',
+            audioUrl: itemUrl,
+            filename: outputFilename,
+          };
+          successBuffersByIndex.set(i, audioBuffers);
 
-          // Update overall progress
-          setProgress(Math.floor((completedItems / totalItems) * 100));
           onProgress([...updatedOutputs]);
         } catch (error) {
           console.error(`Error processing ${output.name}:`, error);
@@ -413,10 +480,37 @@ export function useTTS({ apiKey, voice }: UseTTSParams): UseTTSResult {
         }
       }
 
+      // If 2+ sources produced audio, build a merged output.
+      // OpenAI path: byte-concat same-format MP3s (lossless, no re-encoding).
+      // Local path: decode WAVs via Web Audio + re-encode as MP3 (WAV headers make byte-concat invalid).
+      if (successBuffersByIndex.size >= 2) {
+        const orderedIndices = [...successBuffersByIndex.keys()].sort((a, b) => a - b);
+        const allBuffers = orderedIndices.flatMap((idx) => successBuffersByIndex.get(idx)!);
+        const mergedBlob =
+          engine === 'local'
+            ? await mergeAudioBuffers(allBuffers)
+            : concatenateBuffers(allBuffers);
+        const mergedUrl = URL.createObjectURL(mergedBlob);
+        const sourceNames = orderedIndices
+          .map((idx) => updatedOutputs[idx].name)
+          .slice(0, 3);
+        const mergedOutput: AudioOutput = {
+          id: 'merged',
+          name: 'Merged',
+          filename: `${sourceNames.join('_').replace(/[^a-z0-9_-]+/gi, '_')}_merged_audio.mp3`,
+          sourceType: 'merged',
+          text: '',
+          audioUrl: mergedUrl,
+          status: 'success',
+        };
+        updatedOutputs.push(mergedOutput);
+        onProgress([...updatedOutputs]);
+      }
+
       setIsProcessing(false);
       setProgress(100);
 
-      const successCount = updatedOutputs.filter(o => o.status === 'success').length;
+      const successCount = updatedOutputs.filter((o) => o.status === 'success').length;
       if (successCount > 0) {
         toast({
           title: 'Success',
@@ -426,7 +520,7 @@ export function useTTS({ apiKey, voice }: UseTTSParams): UseTTSResult {
 
       return updatedOutputs;
     },
-    [apiKey, sendTextForTTS, mergeBuffers, toast]
+    [engine, apiKey, localVoiceId, sendTextForTTS, mergeBuffers, toast]
   );
 
   /**

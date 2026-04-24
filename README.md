@@ -7,15 +7,17 @@ A modern, feature-rich text-to-speech converter built with React and OpenAI's TT
 ## Features
 
 - 🎯 Convert text to natural-sounding speech
-- 🎭 Multiple voice options (Alloy, Echo, Fable, Onyx, Nova, Shimmer)
-- 🎨 Beautiful, responsive UI with dark mode support
-- 🚀 Real-time processing with progress indicators
-- ⬇️ Download generated audio files
-- 🔒 Secure API key handling
+- 🧠 Model selection (`tts-1`, `tts-1-hd`, `gpt-4o-mini-tts`)
+- 🎭 Full voice set — voices filter automatically based on the chosen model
+- 📁 Upload multiple `.txt` files — each generates its own audio, then all are concatenated into one merged MP3
+- 🎨 Responsive UI with dark mode support
+- 🚀 Real-time progress indicators
+- ⬇️ Download each individual audio or the merged track
+- 🔒 API key stored locally in your browser
 
 ## Prerequisites
 
-- Node.js 18.x or higher
+- [Bun](https://bun.sh) 1.2.x or higher
 - OpenAI API key ([Get one here](https://platform.openai.com/api-keys))
 
 ## Getting Started
@@ -28,12 +30,22 @@ cd text-to-speech-converter
 
 2. Install dependencies:
 ```bash
-npm install
+bun install
 ```
 
 3. Start the development server:
 ```bash
-npm run dev
+bun run dev
+```
+
+4. Build for production:
+```bash
+bun run build
+```
+
+5. Preview the production build:
+```bash
+bun run preview
 ```
 
 ## Usage
@@ -50,8 +62,8 @@ npm run dev
 ## Tech Stack
 
 - ⚛️ React 18
-- 🏃 Vite
-- 🎨 Tailwind CSS
+- 🥟 Bun — runtime, bundler, dev server, and package manager (Vite-free)
+- 🎨 Tailwind CSS v4 (CSS-first config via `@theme`)
 - 🎯 TypeScript
 - 🎭 shadcn/ui
 - 🔄 Axios

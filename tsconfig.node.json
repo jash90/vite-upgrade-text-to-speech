@@ -3,6 +3,7 @@
     "target": "ES2022",
     "lib": ["ES2023"],
     "module": "ESNext",
+    "types": ["bun"],
     "skipLibCheck": true,
 
     /* Bundler mode */
@@ -18,5 +19,5 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["vite.config.ts"]
+  "include": ["scripts/**/*.ts"]
 }

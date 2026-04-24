@@ -1,21 +1,39 @@
-// This is a simplified version of the use-toast hook
-import { useState } from 'react'
+import { useEffect, useState } from 'react';
 
-interface Toast {
-  title: string
-  description?: string
-  variant?: 'default' | 'destructive'
+export interface Toast {
+  id: number;
+  title: string;
+  description?: string;
+  variant?: 'default' | 'destructive';
+}
+
+const TOAST_DURATION_MS = 3000;
+
+let toastsState: Toast[] = [];
+let listeners: Array<(toasts: Toast[]) => void> = [];
+let nextId = 0;
+
+function emit() {
+  for (const listener of listeners) listener(toastsState);
+}
+
+export function toast(data: Omit<Toast, 'id'>) {
+  const id = ++nextId;
+  toastsState = [...toastsState, { ...data, id }];
+  emit();
+  setTimeout(() => {
+    toastsState = toastsState.filter((t) => t.id !== id);
+    emit();
+  }, TOAST_DURATION_MS);
 }
 
 export function useToast() {
-  const [toasts, setToasts] = useState<Toast[]>([])
-
-  const toast = (newToast: Toast) => {
-    setToasts((prevToasts) => [...prevToasts, newToast])
-    setTimeout(() => {
-      setToasts((prevToasts) => prevToasts.slice(1))
-    }, 3000)
-  }
-
-  return { toast, toasts }
+  const [toasts, setToasts] = useState<Toast[]>(toastsState);
+  useEffect(() => {
+    listeners.push(setToasts);
+    return () => {
+      listeners = listeners.filter((l) => l !== setToasts);
+    };
+  }, []);
+  return { toasts, toast };
 }
