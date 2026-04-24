@@ -52,7 +52,6 @@ async function getSession(voiceId: string): Promise<TtsSessionInstance> {
 
 type RequestMessage =
   | { id: number; type: 'synthesize'; voiceId: string; text: string }
-  | { id: number; type: 'reset' }
   | { id: number; type: 'download'; voiceId: string }
   | { id: number; type: 'isDownloaded'; voiceId: string }
   | { id: number; type: 'listDownloaded' }
@@ -79,12 +78,6 @@ async function handle(req: RequestMessage): Promise<void> {
         const blob = await session.predict(req.text);
         const buffer = await blob.arrayBuffer();
         post({ id: req.id, type: 'result', buffer }, [buffer]);
-        return;
-      }
-      case 'reset': {
-        const mod = await loadPiper();
-        mod.TtsSession._instance = null;
-        post({ id: req.id, type: 'result' });
         return;
       }
       case 'download': {
