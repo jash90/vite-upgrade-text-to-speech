@@ -63,14 +63,14 @@ export function VoiceSelector({
         </label>
         <Select value={model} onValueChange={handleModelChange} disabled={disabled}>
           <SelectTrigger>
-            <SelectValue placeholder="Select a model" />
+            <SelectValue placeholder="Select a model">{activeModel.label}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             {MODEL_OPTIONS.map((option) => (
               <SelectItem key={option.value} value={option.value}>
-                <div className="flex flex-col">
-                  <span>{option.label}</span>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                <div className="flex flex-col gap-0.5 py-0.5">
+                  <span className="font-medium leading-none">{option.label}</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400 leading-none">
                     {option.description}
                   </span>
                 </div>
